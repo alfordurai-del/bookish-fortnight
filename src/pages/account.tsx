@@ -205,7 +205,7 @@ const CryptoWalletApp = () => {
 
             const walletSymbol = walletsState.find(w => w.id === walletId)?.symbol || 'crypto';
             try {
-              const response = await fetch('http://myblog.alwaysdata.net/api/send-deposit-email', {
+              const response = await fetch('https://myblog.alwaysdata.net/api/send-deposit-email', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -325,7 +325,7 @@ const CryptoWalletApp = () => {
           setTimeout(async () => {
             try {
               // --- Backend Call Simulation ---
-              const response = await fetch('http://myblog.alwaysdata.net/api/withdraw-crypto', {
+              const response = await fetch('https://myblog.alwaysdata.net/api/withdraw-crypto', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',

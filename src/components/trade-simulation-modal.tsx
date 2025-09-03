@@ -28,7 +28,7 @@ import 'chartjs-adapter-date-fns';
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 
-const API_BASE_URL = 'http://myblog.alwaysdata.net'
+const API_BASE_URL = 'https://myblog.alwaysdata.net'
 
 // IMPORTANT: Register Chart.js components
 ChartJS.register(

@@ -14,7 +14,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 // IMPORTANT: Ensure VITE_APP_API_BASE_URL is set in your .env file (e.g., .env.local, .env.development)
 // Example: VITE_APP_API_BASE_URL=http://localhost:3000
-const API_BASE_URL = 'http://myblog.alwaysdata.net'; // Use import.meta.env for Vite
+const API_BASE_URL = 'https://myblog.alwaysdata.net'; // Use import.meta.env for Vite
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
