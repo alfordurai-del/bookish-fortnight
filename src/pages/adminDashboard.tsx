@@ -4,7 +4,7 @@ import { useLocation } from 'wouter';
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 
-const API_BASE_URL = 'https://myblog.alwaysdata.net/api'; // Adjust if your backend runs on a different port/domain
+const API_BASE_URL = 'http://localhost:6061/api'; // Adjust if your backend runs on a different port/domain
 const ADMIN_EMAIL = 'calvingleichner181@gmail.com'; // The designated admin email
 
 export default function AdminDashboard() {

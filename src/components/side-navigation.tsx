@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
-  User, Shield, Headphones, Settings, DollarSign, X,
+  User, Shield, ShieldCheck, Headphones, Settings, DollarSign, X,
   Home, BarChart2, Wallet, CreditCard, LogOut, HelpCircle,
-  ArrowRight, ArrowLeft, Moon, Sun, Gift, LogIn,
-  ShieldCheck
+  ArrowRight, ArrowLeft, Moon, Sun, Gift, LogIn
 } from "lucide-react";
 import { useUser } from "@/context/UserContext";
 
@@ -56,15 +55,58 @@ export default function SideNavigation({ isOpen, onClose }: SideNavigationProps)
     if (!user) {
       return "$0.00"; // Not logged in
     }
-    // Changed from user.kycStatus to user.status
-    else if (user.status != 'verified') { // Check if status is 'pending' for demo balance
-      return `$${user.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} Demo`; // Show demo amount for pending KYC
+    // Use user.status if available, fallback to user.kycStatus
+    const status = user.status || user.kycStatus || 'pending';
+    if (status === 'verified') {
+      return `$${user.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}`; // No Demo for verified
     }
-    // Default fallback for any other status (e.g., 'rejected', or undefined if not set)
-    // You might want to refine this to also show demo or specific message for 'rejected'
-    return `$${user.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    // Show Demo for pending, rejected, or any other status
+    return `$${user.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} Demo`;
   };
 
+  // Determine KYC status badge
+  const getKycStatusBadge = () => {
+    if (!user) {
+      return (
+        <div className="flex items-center text-red-400 text-sm bg-red-900/30 px-2 py-1 rounded-full">
+          <Shield className="h-4 w-4 mr-1" />
+          <span>Not Logged In</span>
+        </div>
+      );
+    }
+    // Use user.status if available, fallback to user.kycStatus
+    const status = user.status || user.kycStatus || 'pending';
+    switch (status) {
+      case 'verified':
+        return (
+          <div className="flex items-center text-green-400 text-sm bg-green-900/30 px-2 py-1 rounded-full">
+            <ShieldCheck className="h-4 w-4 mr-1" />
+            <span>Verified</span>
+          </div>
+        );
+      case 'pending':
+        return (
+          <div className="flex items-center text-yellow-400 text-sm bg-yellow-900/30 px-2 py-1 rounded-full">
+            <Shield className="h-4 w-4 mr-1" />
+            <span>Pending</span>
+          </div>
+        );
+      case 'rejected':
+        return (
+          <div className="flex items-center text-red-400 text-sm bg-red-900/30 px-2 py-1 rounded-full">
+            <Shield className="h-4 w-4 mr-1" />
+            <span>Not Verified</span>
+          </div>
+        );
+      default:
+        return (
+          <div className="flex items-center text-red-400 text-sm bg-red-900/30 px-2 py-1 rounded-full">
+            <Shield className="h-4 w-4 mr-1" />
+            <span>Not Verified</span>
+          </div>
+        );
+    }
+  };
 
   return (
     <>
@@ -89,15 +131,15 @@ export default function SideNavigation({ isOpen, onClose }: SideNavigationProps)
               <div className="flex items-center gap-3">
                 <div className="bg-gradient-to-r from-blue-500 to-purple-600 w-10 h-10 rounded-full flex items-center justify-center">
                   <span className="text-lg font-bold text-white">
-                    {user && user.name ? user.name[0] : "U"}
+                    {user && user.username ? user.username[0] : "U"}
                   </span>
                 </div>
                 <div>
                   <h3 className="font-semibold text-white">
-                    {user && user.name ? user.name : "User Account"}
+                    {user && user.username ? user.username : "User Account"}
                   </h3>
                   <p className="text-xs text-gray-400">
-                  {user && user.uid ? `UID: ${user.uid}` : "Not logged in"}
+                    {user && user.uid ? `UID: ${user.uid}` : "Not logged in"}
                   </p>
                 </div>
               </div>
@@ -118,24 +160,7 @@ export default function SideNavigation({ isOpen, onClose }: SideNavigationProps)
                   </p>
                 </div>
                 {/* KYC Status Badge */}
-                {user ? (
-                  user.status === 'verified' ? ( // Changed from user.kycStatus to user.status
-                    <div className="flex items-center text-green-400 text-sm bg-green-900/30 px-2 py-1 rounded-full">
-                      <ShieldCheck className="h-4 w-4 mr-1" />
-                      <span>Verified</span>
-                    </div>
-                  ) : ( // Covers 'pending', 'rejected', or any other unverified status
-                    <div className="flex items-center text-green-400 text-sm bg-green-900/30 px-2 py-1 rounded-full">
-                      <ShieldCheck className="h-4 w-4 mr-1" />
-                      <span>Verified</span>
-                    </div>
-                  )
-                ) : (
-                  <div className="flex items-center text-red-400 text-sm bg-red-900/30 px-2 py-1 rounded-full">
-                    <Shield className="h-4 w-4 mr-1" />
-                    <span>Not Logged In</span>
-                  </div>
-                )}
+                {getKycStatusBadge()}
               </div>
             </div>
           </div>
@@ -167,31 +192,31 @@ export default function SideNavigation({ isOpen, onClose }: SideNavigationProps)
 
             {/* Theme Toggle and Settings */}
             <div className="space-y-1">
-                {bottomItems.map((item) => (
-                  <button
-                    key={item.label}
-                    onClick={item.action ? item.action : () => handleNavigation(item.path!)}
-                    className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors text-gray-300 hover:bg-gray-800/50`}
-                  >
-                    {item.label === "Theme" ? (
-                      isDarkMode ? <Sun className="h-5 w-5 mr-3 text-gray-400" /> : <Moon className="h-5 w-5 mr-3 text-gray-400" />
-                    ) : (
-                      <item.icon className="h-5 w-5 mr-3 text-gray-400" />
-                    )}
-                    <span>{item.label}</span>
-                    {item.label === "Theme" && (
-                      <div className="ml-auto relative inline-flex items-center cursor-pointer" onClick={(e) => { e.stopPropagation(); setIsDarkMode(!isDarkMode); }}>
-                        <div className={`w-11 h-6 rounded-full transition-colors ${
-                          isDarkMode ? 'bg-blue-500' : 'bg-gray-600'
-                        }`}>
-                          <div className={`absolute top-0.5 left-0.5 bg-white border rounded-full h-5 w-5 transition-transform ${
-                            isDarkMode ? 'transform translate-x-5' : ''
-                          }`}></div>
-                        </div>
+              {bottomItems.map((item) => (
+                <button
+                  key={item.label}
+                  onClick={item.action ? item.action : () => handleNavigation(item.path!)}
+                  className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors text-gray-300 hover:bg-gray-800/50`}
+                >
+                  {item.label === "Theme" ? (
+                    isDarkMode ? <Sun className="h-5 w-5 mr-3 text-gray-400" /> : <Moon className="h-5 w-5 mr-3 text-gray-400" />
+                  ) : (
+                    <item.icon className="h-5 w-5 mr-3 text-gray-400" />
+                  )}
+                  <span>{item.label}</span>
+                  {item.label === "Theme" && (
+                    <div className="ml-auto relative inline-flex items-center cursor-pointer" onClick={(e) => { e.stopPropagation(); setIsDarkMode(!isDarkMode); }}>
+                      <div className={`w-11 h-6 rounded-full transition-colors ${
+                        isDarkMode ? 'bg-blue-500' : 'bg-gray-600'
+                      }`}>
+                        <div className={`absolute top-0.5 left-0.5 bg-white border rounded-full h-5 w-5 transition-transform ${
+                          isDarkMode ? 'transform translate-x-5' : ''
+                        }`}></div>
                       </div>
-                    )}
-                  </button>
-                ))}
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 

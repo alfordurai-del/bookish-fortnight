@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { FaBitcoin, FaEthereum, FaDollarSign, FaCoins, FaExchangeAlt, FaArrowUp, FaArrowDown, FaPlus, FaCopy, FaCheck, FaQrcode, FaExternalLinkAlt } from 'react-icons/fa';
 import { SiTether, SiDogecoin, SiLitecoin, SiDash, SiBinance } from 'react-icons/si';
 import toast, { Toaster } from 'react-hot-toast';
+import { debounce } from 'lodash';
 
 import { useUser } from '../context/UserContext';
 import { fetchCryptoToUsdRates } from '../data/mockExchangeRates';
 
 const CryptoWalletApp = () => {
-  // --- ALL HOOK CALLS MUST BE AT THE TOP LEVEL ---
   const { user, isLoading: isUserLoading, error: userError, updateUserBalance, refetchUser } = useUser();
-
   const [activeTab, setActiveTab] = useState('send');
   const [selectedWallet, setSelectedWallet] = useState(null);
   const [copiedAddress, setCopiedAddress] = useState(null);
@@ -23,19 +22,23 @@ const CryptoWalletApp = () => {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [exchange, setExchange] = useState('binance');
   const [withdrawalAmountInput, setWithdrawalAmountInput] = useState('');
-  const [withdrawalInputMode, setWithdrawalInputMode] = useState('crypto'); // 'crypto' or 'usd'
+  const [withdrawalInputMode, setWithdrawalInputMode] = useState('crypto');
   const [withdrawalAddress, setWithdrawalAddress] = useState('');
-  const [depositAmountInput, setDepositAmountInput] = useState(''); // NEW: State for deposit amount
+  const [depositAmountInput, setDepositAmountInput] = useState('');
   const [, setLocation] = useLocation();
-
   const [cryptoExchangeRates, setCryptoExchangeRates] = useState({});
-
-  // NEW: States to hold wallet info during processing animations
   const [processingWalletIcon, setProcessingWalletIcon] = useState(null);
   const [processingWalletSymbol, setProcessingWalletSymbol] = useState('');
+  const [walletsState, setWallets] = useState([]);
+  const initialBalanceRef = useRef(null);
+  const userRef = useRef(user); // Store latest user object
 
-  // Define initial wallet templates (without balances)
-  // Balances will be dynamically calculated
+  // Update userRef whenever user changes
+  useEffect(() => {
+    userRef.current = user;
+    console.log(`CryptoWalletApp: userRef updated:`, userRef.current);
+  }, [user]);
+
   const walletTemplates = [
     {
       id: 'btc',
@@ -79,10 +82,6 @@ const CryptoWalletApp = () => {
     },
   ];
 
-  // State to hold the wallets with their calculated balances
-  const [walletsState, setWallets] = useState([]);
-
-  // Fetch exchange rates on component mount
   useEffect(() => {
     const getRates = async () => {
       try {
@@ -95,37 +94,44 @@ const CryptoWalletApp = () => {
     getRates();
   }, []);
 
-  // --- EFFECT TO CALCULATE AND SET WALLET BALANCES ---
+  const usdBalance = user?.balance ?? 0;
+
   useEffect(() => {
     if (user && user.balance !== undefined && Object.keys(cryptoExchangeRates).length > 0) {
-      const usdBalance = user.balance;
-
-      const updatedWallets = walletTemplates.map(template => {
+      console.log(`CryptoWalletApp: User balance updated to ${user.balance}`);
+      const updatedWallets = walletTemplates.map((template) => {
         const rate = cryptoExchangeRates[template.symbol];
-        // Calculate the crypto balance by converting the entire USD balance
-        const calculatedCryptoBalance = rate ? (usdBalance / rate) : 0;
+        const calculatedCryptoBalance = rate ? usdBalance / rate : 0;
         return {
           ...template,
-          balance: calculatedCryptoBalance
+          balance: calculatedCryptoBalance,
         };
       });
-      setWallets(updatedWallets);
 
-      // NEW: If a wallet is already selected, update its reference to the one with the new balance
-      // This is crucial to ensure selectedWallet always has the latest balance from walletsState
+      setWallets((prevWallets) => {
+        if (
+          JSON.stringify(prevWallets.map((w) => w.balance)) !==
+          JSON.stringify(updatedWallets.map((w) => w.balance))
+        ) {
+          console.log("CryptoWalletApp: Updating wallets due to balance change.");
+          return updatedWallets;
+        }
+        return prevWallets;
+      });
+
       if (selectedWallet) {
-        const updatedSelectedWallet = updatedWallets.find(w => w.id === selectedWallet.id);
-        if (updatedSelectedWallet) {
+        const updatedSelectedWallet = updatedWallets.find((w) => w.id === selectedWallet.id);
+        if (
+          updatedSelectedWallet &&
+          selectedWallet.balance !== updatedSelectedWallet.balance
+        ) {
+          console.log("CryptoWalletApp: Updating selectedWallet due to balance change.");
           setSelectedWallet(updatedSelectedWallet);
         }
       }
     }
-  }, [user, cryptoExchangeRates]);
+  }, [user?.balance, cryptoExchangeRates, selectedWallet, usdBalance]);
 
-  // Derive USD balance from user context
-  const usdBalance = user?.balance ?? 0;
-
-  // This useCallback must also be at the top level
   const calculatedEquivalentAmount = useCallback(() => {
     if (!withdrawalAmountInput || !selectedWallet || !cryptoExchangeRates[selectedWallet.symbol]) {
       return null;
@@ -134,14 +140,10 @@ const CryptoWalletApp = () => {
     if (isNaN(amount) || amount <= 0) {
       return null;
     }
-
     const rate = cryptoExchangeRates[selectedWallet.symbol];
-
-    if (withdrawalInputMode === 'usd') {
-      return (amount / rate).toFixed(6);
-    } else { // 'crypto' mode
-      return (amount * rate).toFixed(2);
-    }
+    return withdrawalInputMode === 'usd'
+      ? (amount / rate).toFixed(6)
+      : (amount * rate).toFixed(2);
   }, [withdrawalAmountInput, selectedWallet, cryptoExchangeRates, withdrawalInputMode]);
 
   const exchanges = [
@@ -157,91 +159,118 @@ const CryptoWalletApp = () => {
     setTimeout(() => setCopiedAddress(null), 2000);
   };
 
-  const simulateDeposit = (walletId) => {
-    // Ensure selectedWallet is not null before starting processing
-    if (!selectedWallet) {
-      toast.error("Please select a wallet to deposit to.");
-      return;
-    }
+  const simulateDeposit = useCallback(
+    debounce(async () => {
+      if (!selectedWallet) {
+        toast.error("Please select a wallet to deposit to.");
+        return;
+      }
+      const inputAmount = parseFloat(depositAmountInput);
+      if (!depositAmountInput || isNaN(inputAmount) || inputAmount <= 0) {
+        toast.error("Please enter a valid positive deposit amount.");
+        return;
+      }
 
-    // Validate deposit amount
-    const inputAmount = parseFloat(depositAmountInput);
-    if (!depositAmountInput || isNaN(inputAmount) || inputAmount <= 0) {
-      toast.error("Please enter a valid positive deposit amount.");
-      return;
-    }
+      if (isTransferring) {
+        toast.error("A deposit is already in progress.");
+        return;
+      }
 
-    setIsTransferring(true);
-    setTransferStatus('processing');
-    setTransferProgress(0);
-    setProcessingWalletIcon(selectedWallet.icon); // Set icon for processing display
-    setProcessingWalletSymbol(selectedWallet.symbol); // Set symbol for processing display
-    toast.loading('Processing deposit...');
+      console.log("simulateDeposit: Starting deposit process...");
+      console.log(`simulateDeposit: Current user:`, userRef.current);
 
-    const interval = setInterval(() => {
-      setTransferProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
+      setIsTransferring(true);
+      setTransferStatus("processing");
+      setProcessingWalletIcon(selectedWallet.icon);
+      setProcessingWalletSymbol(selectedWallet.symbol);
+      initialBalanceRef.current = userRef.current?.balance ?? 0;
 
-          setTimeout(async () => {
-            const depositedAmount = inputAmount; // Use the input amount
-            const usdDepositedAmount = depositedAmount * cryptoExchangeRates[selectedWallet.symbol]; // Convert to USD
-            // Update client-side wallet balance
-            setWallets(prevWallets =>
-              prevWallets.map(wallet =>
-                wallet.id === walletId
-                  ? { ...wallet, balance: wallet.balance + depositedAmount }
-                  : wallet
-              )
-            );
-            // Update user balance in USD
-            updateUserBalance(usdBalance + usdDepositedAmount);
-            setTransferStatus('completed');
-            setIsTransferring(false);
-            setDepositAmountInput(''); // Clear input field
-            // After completion, clear processing states
-            setProcessingWalletIcon(null);
-            setProcessingWalletSymbol('');
+      const depositPromise = new Promise(async (resolve, reject) => {
+        const depositedAmount = inputAmount;
+        const walletSymbol = selectedWallet.symbol;
 
-            const walletSymbol = walletsState.find(w => w.id === walletId)?.symbol || 'crypto';
-            try {
-              const response = await fetch('https://myblog.alwaysdata.net/api/send-deposit-email', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  userId: user?.id,
-                  userEmail: user?.email,
-                  amount: depositedAmount,
-                  symbol: walletSymbol
-                }),
-              });
+        console.log(`simulateDeposit: Initial balance: ${initialBalanceRef.current}`);
 
-              if (response.ok) {
-                const data = await response.json();
-                console.log("Backend email API success:", data.message);
-                toast.success(`Deposit of ${depositedAmount} ${walletSymbol} completed! The team is processing your transaction`);
-              } else {
-                const errorData = await response.json();
-                console.error("Backend email API failed:", errorData.error);
-                toast.error(`Deposit completed, but failed to send notification email. Error: ${errorData.error}`);
-              }
-            } catch (error) {
-              console.error("Error calling backend email API:", error);
-              toast.error("Deposit completed, but an error occurred while trying to send the notification email.");
+        try {
+          console.log("simulateDeposit: Sending deposit request to backend...");
+          const depositResponse = await fetch("http://localhost:6061/api/send-deposit-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: userRef.current?.id,
+              userEmail: userRef.current?.email,
+              amount: depositedAmount,
+              symbol: walletSymbol,
+              transactionId: crypto.randomUUID(),
+            }),
+          });
+
+          if (!depositResponse.ok) {
+            const errorData = await depositResponse.json();
+            throw new Error(errorData.error || `HTTP error! status: ${depositResponse.status}`);
+          }
+
+          console.log("simulateDeposit: Deposit request sent successfully.");
+
+          const maxAttempts = 24;
+          const pollingInterval = 10000;
+          let attempt = 0;
+          const intervalId = setInterval(async () => {
+            attempt++;
+            console.log(`simulateDeposit: Polling attempt ${attempt}/${maxAttempts}`);
+            await refetchUser("simulateDeposit");
+
+            console.log(`simulateDeposit: Current user after refetch:`, userRef.current);
+            console.log(`simulateDeposit: Current balance: ${userRef.current?.balance ?? 0}`);
+            if ((userRef.current?.balance ?? 0) !== initialBalanceRef.current) {
+              console.log("simulateDeposit: Balance changed! Stopping polling.");
+              clearInterval(intervalId);
+              setTransferStatus("completed");
+              setIsTransferring(false);
+              setDepositAmountInput("");
+              setProcessingWalletIcon(null);
+              setProcessingWalletSymbol("");
+              resolve(`Deposit of ${depositedAmount} ${walletSymbol} completed successfully!`);
+              return;
             }
-          }, 1000);
 
-          return 100;
+            if (attempt >= maxAttempts) {
+              console.log("simulateDeposit: Polling timed out.");
+              clearInterval(intervalId);
+              setTransferStatus("failed");
+              setIsTransferring(false);
+              setProcessingWalletIcon(null);
+              setProcessingWalletSymbol("");
+              reject(new Error("Deposit timed out. Please check your transaction history."));
+            }
+          }, pollingInterval);
+        } catch (error) {
+          console.log(`simulateDeposit: Error occurred: ${error.message}`);
+          clearInterval(intervalId);
+          setTransferStatus("failed");
+          setIsTransferring(false);
+          setProcessingWalletIcon(null);
+          setProcessingWalletSymbol("");
+          reject(new Error(`Deposit failed: ${error.message}`));
         }
-        return prev + 10;
       });
-    }, 200);
-  };
+
+      toast.promise(depositPromise, {
+        loading: "Processing deposit...",
+        success: (message) => {
+          console.log("simulateDeposit: Toast success displayed.");
+          return message;
+        },
+        error: (error) => {
+          console.log("simulateDeposit: Toast error displayed.");
+          return error.message;
+        },
+      });
+    }, 300),
+    [selectedWallet, depositAmountInput, isTransferring, refetchUser]
+  );
 
   const simulateWithdrawal = async () => {
-    // --- START FORM VALIDATION ---
     if (!selectedWallet) {
       toast.error("Please select a cryptocurrency wallet to withdraw from.");
       return;
@@ -254,7 +283,7 @@ const CryptoWalletApp = () => {
       toast.error("Please enter the recipient's wallet address.");
       return;
     }
-    if (!user || !user.id) {
+    if (!userRef.current || !userRef.current.id) {
       toast.error("You must be logged in to initiate a withdrawal.");
       return;
     }
@@ -265,7 +294,6 @@ const CryptoWalletApp = () => {
       return;
     }
 
-    // Basic recipient address length validation (a real app would use more specific regex)
     if (withdrawalAddress.trim().length < 10) {
       toast.error("Please enter a valid recipient address (too short or invalid format).");
       return;
@@ -273,8 +301,7 @@ const CryptoWalletApp = () => {
 
     let cryptoAmountToWithdraw;
     let usdAmountToDeduct;
-    const currentWalletDerivedBalance = selectedWallet.balance; // The crypto balance derived from USD
-
+    const currentWalletDerivedBalance = selectedWallet.balance;
     const rate = cryptoExchangeRates[selectedWallet.symbol];
     if (!rate) {
       toast.error(`Exchange rate for ${selectedWallet.symbol} is not available. Please try again later.`);
@@ -284,98 +311,67 @@ const CryptoWalletApp = () => {
     if (withdrawalInputMode === 'usd') {
       usdAmountToDeduct = inputAmount;
       cryptoAmountToWithdraw = usdAmountToDeduct / rate;
-
       if (usdAmountToDeduct > usdBalance) {
         toast.error(`Insufficient USD balance. You only have $${usdBalance.toFixed(2)} available.`);
         return;
       }
-      // Check if the equivalent crypto amount is more than the derived balance
       if (cryptoAmountToWithdraw > currentWalletDerivedBalance) {
         toast.error(`Insufficient ${selectedWallet.symbol} balance. Your available derived balance is ${currentWalletDerivedBalance.toFixed(6)} ${selectedWallet.symbol}.`);
         return;
       }
-    } else { // withdrawalInputMode === 'crypto'
+    } else {
       cryptoAmountToWithdraw = inputAmount;
       usdAmountToDeduct = cryptoAmountToWithdraw * rate;
-
       if (cryptoAmountToWithdraw > currentWalletDerivedBalance) {
         toast.error(`Insufficient ${selectedWallet.symbol} balance. You only have ${currentWalletDerivedBalance.toFixed(6)} ${selectedWallet.symbol} available.`);
         return;
       }
-      // Since crypto balances are derived from USD, any crypto withdrawal implies a USD deduction.
       if (usdAmountToDeduct > usdBalance) {
         toast.error(`Insufficient USD balance to cover the equivalent value of this withdrawal. You only have $${usdBalance.toFixed(2)} available.`);
         return;
       }
     }
-    // --- END FORM VALIDATION ---
 
+    const newBalance = usdBalance - usdAmountToDeduct;
     setIsWithdrawing(true);
     setWithdrawalStatus('processing');
-    setWithdrawalProgress(0);
-    setProcessingWalletIcon(selectedWallet.icon); // Set icon for processing display
-    setProcessingWalletSymbol(selectedWallet.symbol); // Set symbol for processing display
-    toast.loading('Processing withdrawal...');
+    setProcessingWalletIcon(selectedWallet.icon);
+    setProcessingWalletSymbol(selectedWallet.symbol);
 
-    const interval = setInterval(() => {
-      setWithdrawalProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-
-          setTimeout(async () => {
-            try {
-              // --- Backend Call Simulation ---
-              const response = await fetch('https://myblog.alwaysdata.net/api/withdraw-crypto', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  userId: user.id,
-                  walletId: selectedWallet.id,
-                  amount: cryptoAmountToWithdraw, // Amount of crypto being withdrawn
-                  withdrawalAddress: withdrawalAddress,
-                  symbol: selectedWallet.symbol,
-                  usdDeduction: usdAmountToDeduct // How much USD to deduct from the user's main balance
-                }),
-              });
-
-              if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-              }
-
-              // --- Client-side State Update After Backend Success ---
-              updateUserBalance(usdBalance - usdAmountToDeduct);
-
-              setWithdrawalStatus('completed');
-              setIsWithdrawing(false);
-              setWithdrawalAmountInput('');
-              setWithdrawalAddress('');
-              setSelectedWallet(null); // Clear selected wallet after successful withdrawal
-              // After completion, clear processing states
-              setProcessingWalletIcon(null);
-              setProcessingWalletSymbol('');
-              toast.success('Withdrawal completed successfully!');
-            } catch (error) {
-              console.error("Failed to process withdrawal:", error);
-              setWithdrawalStatus('failed');
-              setIsWithdrawing(false);
-              // Ensure processing states are cleared even on failure
-              setProcessingWalletIcon(null);
-              setProcessingWalletSymbol('');
-              toast.error(`Withdrawal failed: ${error.message}`);
-            }
-          }, 1000); // Simulate network delay
-
-          return 100;
-        }
-        return prev + 10;
+    try {
+      const response = await fetch('http://localhost:6061/api/update-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userRef.current.id,
+          balance: newBalance,
+        }),
       });
-    }, 200); // Progress update interval
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      await refetchUser("simulateWithdrawal");
+      setWithdrawalStatus('completed');
+      setIsWithdrawing(false);
+      setWithdrawalAmountInput('');
+      setWithdrawalAddress('');
+      setSelectedWallet(null);
+      setProcessingWalletIcon(null);
+      setProcessingWalletSymbol('');
+      toast.success('Withdrawal completed and balance updated!');
+    } catch (error) {
+      console.error("Failed to process withdrawal:", error);
+      setWithdrawalStatus('failed');
+      setIsWithdrawing(false);
+      setProcessingWalletIcon(null);
+      setProcessingWalletSymbol('');
+      toast.error(`Withdrawal failed: ${error.message}`);
+    }
   };
 
-  // --- Conditional Renders (MUST COME AFTER ALL HOOKS) ---
   if (isUserLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white flex items-center justify-center">
@@ -392,7 +388,7 @@ const CryptoWalletApp = () => {
     );
   }
 
-  if (!user || !user.id) {
+  if (!userRef.current || !userRef.current.id) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-gray-400 flex items-center justify-center">
         Please log in to access your wallet.
@@ -404,7 +400,6 @@ const CryptoWalletApp = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white p-4 sm:p-6 md:p-8">
       <Toaster />
       <div className="max-w-4xl mx-auto">
-        {/* Back Arrow */}
         <button
           onClick={() => setLocation('/')}
           className="flex items-center gap-2 text-gray-400 hover:text-white mb-4"
@@ -412,7 +407,6 @@ const CryptoWalletApp = () => {
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm">Back</span>
         </button>
-        {/* Header */}
         <header className="mb-8 text-center">
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
             CryptoWallet
@@ -423,17 +417,16 @@ const CryptoWalletApp = () => {
           </div>
         </header>
 
-        {/* Action Tabs */}
         <div className="bg-gray-800 rounded-xl p-1 mb-8 flex">
           <button
             onClick={() => {
               setActiveTab('send');
-              setSelectedWallet(null); // Clear selected wallet on tab change
-              setIsTransferring(false); // Reset transfer state
+              setSelectedWallet(null);
+              setIsTransferring(false);
               setTransferStatus(null);
-              setIsWithdrawing(false); // Reset withdrawal state
+              setIsWithdrawing(false);
               setWithdrawalStatus(null);
-              setDepositAmountInput(''); // Clear deposit amount
+              setDepositAmountInput('');
             }}
             className={`flex-1 py-3 px-4 rounded-lg text-center transition-all ${
               activeTab === 'send'
@@ -448,12 +441,12 @@ const CryptoWalletApp = () => {
           <button
             onClick={() => {
               setActiveTab('withdraw');
-              setSelectedWallet(null); // Clear selected wallet on tab change
-              setIsTransferring(false); // Reset transfer state
+              setSelectedWallet(null);
+              setIsTransferring(false);
               setTransferStatus(null);
-              setIsWithdrawing(false); // Reset withdrawal state
+              setIsWithdrawing(false);
               setWithdrawalStatus(null);
-              setDepositAmountInput(''); // Clear deposit amount
+              setDepositAmountInput('');
             }}
             className={`flex-1 py-3 px-4 rounded-lg text-center transition-all ${
               activeTab === 'withdraw'
@@ -467,9 +460,7 @@ const CryptoWalletApp = () => {
           </button>
         </div>
 
-        {/* Main Content */}
         <div className="bg-gray-800 rounded-2xl overflow-hidden shadow-xl">
-          {/* Empty State Guidance */}
           {walletsState.length > 0 && walletsState.every(w => w.balance === 0) && usdBalance === 0 && (
             <div className="p-6 bg-gradient-to-r from-purple-900/50 to-blue-900/50 border-b border-gray-700">
               <div className="flex items-start">
@@ -499,7 +490,6 @@ const CryptoWalletApp = () => {
             </div>
           )}
 
-          {/* Deposit Crypto Panel */}
           {activeTab === 'send' && (
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -607,8 +597,12 @@ const CryptoWalletApp = () => {
                       </div>
 
                       <button
-                        onClick={() => simulateDeposit(selectedWallet.id)}
+                        onClick={() => {
+                          console.log("Deposit button clicked");
+                          simulateDeposit();
+                        }}
                         className="w-full bg-gradient-to-r from-purple-600 to-pink-600 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
+                        disabled={isTransferring || !selectedWallet || !depositAmountInput}
                       >
                         Complete Deposit
                       </button>
@@ -664,7 +658,6 @@ const CryptoWalletApp = () => {
             </div>
           )}
 
-          {/* Withdraw Crypto Panel */}
           {activeTab === 'withdraw' && (
             <div className="p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -672,7 +665,7 @@ const CryptoWalletApp = () => {
               </h2>
 
               {!isWithdrawing ? (
-                <>
+                <div>
                   <div className="bg-gray-700/50 rounded-xl p-5 mb-6">
                     <label className="block text-sm text-gray-400 mb-2">Select Wallet to Withdraw From</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -690,9 +683,7 @@ const CryptoWalletApp = () => {
                             selectedWallet?.id === wallet.id
                               ? 'bg-gradient-to-r from-red-600/30 to-rose-600/30 border border-red-500'
                               : 'bg-gray-600 hover:bg-gray-500'
-                          } ${
-                            wallet.balance === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
+                          } ${wallet.balance === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                           <div className="text-2xl mb-1">{wallet.icon}</div>
                           <span className="text-sm">{wallet.symbol}</span>
@@ -705,7 +696,6 @@ const CryptoWalletApp = () => {
                   {selectedWallet && (
                     <div className="bg-gray-700/50 rounded-xl p-5 border border-gray-600">
                       <h3 className="font-bold text-lg mb-4 text-center">Withdraw {selectedWallet.symbol}</h3>
-
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm text-gray-400 mb-1">Recipient Address</label>
@@ -717,7 +707,6 @@ const CryptoWalletApp = () => {
                             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500"
                           />
                         </div>
-
                         <div>
                           <label className="block text-sm text-gray-400 mb-1">Amount to Withdraw</label>
                           <div className="flex bg-gray-800 border border-gray-600 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-red-500">
@@ -757,8 +746,6 @@ const CryptoWalletApp = () => {
                               Available USD: ${usdBalance.toFixed(2)}
                             </p>
                           )}
-
-                          {/* Display converted amount */}
                           {withdrawalAmountInput && selectedWallet && cryptoExchangeRates[selectedWallet.symbol] && (
                             <p className="text-sm text-gray-400 mt-2">
                               {withdrawalInputMode === 'usd' ? (
@@ -769,12 +756,11 @@ const CryptoWalletApp = () => {
                             </p>
                           )}
                         </div>
-
                         <div className="pt-4">
                           <button
                             onClick={simulateWithdrawal}
                             className="w-full bg-gradient-to-r from-red-500 to-rose-600 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
-                            disabled={isWithdrawing} // Disable while processing to prevent double-clicks
+                            disabled={isWithdrawing}
                           >
                             {isWithdrawing ? 'Processing...' : 'Initiate Withdrawal'}
                           </button>
@@ -782,7 +768,7 @@ const CryptoWalletApp = () => {
                       </div>
                     </div>
                   )}
-                </>
+                </div>
               ) : (
                 <div className="text-center py-10">
                   <div className="inline-flex items-center justify-center mb-6">
@@ -794,7 +780,6 @@ const CryptoWalletApp = () => {
                       </div>
                     </div>
                   </div>
-
                   <h3 className="text-xl font-semibold mb-2">
                     {withdrawalStatus === 'processing'
                       ? 'Processing Withdrawal...'
@@ -802,9 +787,8 @@ const CryptoWalletApp = () => {
                       ? 'Withdrawal Completed!'
                       : 'Withdrawal Failed!'}
                   </h3>
-
                   {withdrawalStatus === 'processing' ? (
-                    <>
+                    <div>
                       <p className="text-gray-400 mb-4">Sending transaction to blockchain</p>
                       <div className="max-w-md mx-auto bg-gray-700 rounded-full h-2.5 mb-4">
                         <div
@@ -813,9 +797,9 @@ const CryptoWalletApp = () => {
                         ></div>
                       </div>
                       <p className="text-sm text-gray-500">Estimated time: {withdrawalProgress < 50 ? '30 seconds' : '10 seconds'}</p>
-                    </>
+                    </div>
                   ) : withdrawalStatus === 'completed' ? (
-                    <>
+                    <div>
                       <p className="text-green-400 mb-4">Your {processingWalletSymbol} withdrawal has been processed!</p>
                       <button
                         onClick={() => {
@@ -827,9 +811,9 @@ const CryptoWalletApp = () => {
                       >
                         Done
                       </button>
-                    </>
+                    </div>
                   ) : (
-                    <>
+                    <div>
                       <p className="text-red-400 mb-4">There was an error processing your withdrawal.</p>
                       <button
                         onClick={() => {
@@ -841,7 +825,7 @@ const CryptoWalletApp = () => {
                       >
                         Try Again
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               )}
