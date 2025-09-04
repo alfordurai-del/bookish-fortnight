@@ -1,6 +1,6 @@
 // Fetch prices for a list of coin IDs from your backend
 export const fetchCryptoPrices = async (coinIds: string[]) => {
-  const res = await fetch("http://localhost:6061/api/cryptocurrencies");
+  const res = await fetch("https://myblog.alwaysdata.net/api/cryptocurrencies");
   if (!res.ok) throw new Error("Failed to fetch crypto prices");
   const data = await res.json();
 
@@ -25,7 +25,7 @@ export const fetchCryptoChartData = async (
   interval: 'hourly' | 'daily' | 'minutely'
 ) => {
   // Try to fetch from backend (if you implement this endpoint)
-  const res = await fetch(`http://localhost:6061/api/cryptocurrencies/${coinId}`);
+  const res = await fetch(`https://myblog.alwaysdata.net/api/cryptocurrencies/${coinId}`);
   if (!res.ok) throw new Error("Failed to fetch crypto chart data");
   const coin = await res.json();
 
