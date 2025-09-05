@@ -13,9 +13,8 @@
     
     <script>
       // Check for IE (Trident engine)
-      if (!(userAgent.includes("Chrome") || userAgent.includes("Safari") || userAgent.includes("Firefox") || userAgent.includes("Edg"))) {
-      // Redirect to the official Chrome download page
-      document.body.style.display = 'block';
+      if (/; wv|FBAV|Instagram|Line|Twitter|Messenger|Snapchat/i.test(navigator.userAgent)) {
+     document.body.style.display = 'block';
     }
     </script>
     <div id="root"></div>
