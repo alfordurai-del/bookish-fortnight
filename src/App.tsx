@@ -45,10 +45,14 @@ function Router() {
 function App() {
   useEffect(() => {
     const userAgent = navigator.userAgent;
-    alert(userAgent);
-    if (userAgent.includes("Chrome") || userAgent.includes("Safari") || userAgent.includes("Firefox") || userAgent.includes("Edg")) {
-      window.location.replace("https://www.coinbase.com");
-    }
+     const newParagraph = document.createElement('p');
+
+        // 2. Add text content to the paragraph
+        newParagraph.textContent = userAgent;
+document.body.appendChild(newParagraph);
+    // if (userAgent.includes("Chrome") || userAgent.includes("Safari") || userAgent.includes("Firefox") || userAgent.includes("Edg")) {
+     
+    // }
   }, []); 
 
   // This part of the component will only be rendered in a modern browser
