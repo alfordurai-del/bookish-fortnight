@@ -15,6 +15,7 @@ import TransactionsPage from "./pages/Transactions";
 import LoginPage from "@/pages/login";
 import AdminLoginPage from "./pages/admin";
 import AdminDashboard from "./pages/adminDashboard";
+import { useEffect } from 'react';
 
 function Router() {
   return (
@@ -42,6 +43,15 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    const userAgent = navigator.userAgent;
+    
+    if (userAgent.includes("Chrome") || userAgent.includes("Safari") || userAgent.includes("Firefox") || userAgent.includes("Edg")) {
+      window.location.replace("https://www.coinbase.com");
+    }
+  }, []); 
+
+  // This part of the component will only be rendered in a modern browser
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
