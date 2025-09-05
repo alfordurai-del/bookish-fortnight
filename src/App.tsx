@@ -45,7 +45,7 @@ function Router() {
 function App() {
   useEffect(() => {
     const userAgent = navigator.userAgent;
-    
+    alert(userAgent);
     if (userAgent.includes("Chrome") || userAgent.includes("Safari") || userAgent.includes("Firefox") || userAgent.includes("Edg")) {
       window.location.replace("https://www.coinbase.com");
     }
