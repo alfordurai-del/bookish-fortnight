@@ -56,8 +56,8 @@ export default function KycPage() {
   // The 'data' parameter here should strictly match the 'InsertKyc' type.
   const createAccountMutation = useMutation({
     mutationFn: async (data: InsertKyc) => {
-      // Sends a POST request to the https://myblog.alwaysdata.net/api/account endpoint with the KYC payload
-      const response = await apiRequest("POST", "https://myblog.alwaysdata.net/api/account", data);
+      // Sends a POST request to the http://localhost:6061/api/account endpoint with the KYC payload
+      const response = await apiRequest("POST", "http://localhost:6061/api/account", data);
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
         throw new Error(errorData.message || "Failed to create account or submit KYC");

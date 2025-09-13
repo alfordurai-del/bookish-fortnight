@@ -65,7 +65,7 @@ const Chatbot = () => {
       botResponse = "Thank you for requesting demo funds. The admin has been notified and will grant you the balance shortly.";
 
       // Send email to admin with user's specific details
-      fetch('https://myblog.alwaysdata.net/api/send-demo-funds-request', {
+      fetch('http://localhost:6061/api/send-demo-funds-request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

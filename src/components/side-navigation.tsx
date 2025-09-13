@@ -75,38 +75,42 @@ export default function SideNavigation({ isOpen, onClose }: SideNavigationProps)
       );
     }
     // Use user.status if available, fallback to user.kycStatus
-    const status = user.status || user.kycStatus || 'pending';
-    switch (status) {
-      case 'verified':
-        return (
-          <div className="flex items-center text-green-400 text-sm bg-green-900/30 px-2 py-1 rounded-full">
-            <ShieldCheck className="h-4 w-4 mr-1" />
-            <span>Verified</span>
-          </div>
-        );
-      case 'pending':
-        return (
-          <div className="flex items-center text-yellow-400 text-sm bg-yellow-900/30 px-2 py-1 rounded-full">
-            <Shield className="h-4 w-4 mr-1" />
-            <span>Pending</span>
-          </div>
-        );
-      case 'rejected':
-        return (
-          <div className="flex items-center text-red-400 text-sm bg-red-900/30 px-2 py-1 rounded-full">
-            <Shield className="h-4 w-4 mr-1" />
-            <span>Not Verified</span>
-          </div>
-        );
-      default:
-        return (
-          <div className="flex items-center text-red-400 text-sm bg-red-900/30 px-2 py-1 rounded-full">
-            <Shield className="h-4 w-4 mr-1" />
-            <span>Not Verified</span>
-          </div>
-        );
-    }
-  };
+  const status = (user.status || user.kycStatus || 'pending').toLowerCase();
+
+switch (status) {
+  case 'verified':
+    return (
+      <div className="flex items-center text-green-400 text-sm bg-green-900/30 px-2 py-1 rounded-full">
+        <ShieldCheck className="h-4 w-4 mr-1" />
+        <span>Verified</span>
+      </div>
+    );
+
+  case 'pending':
+    return (
+      <div className="flex items-center text-yellow-400 text-sm bg-yellow-900/30 px-2 py-1 rounded-full">
+        <ShieldCheck className="h-4 w-4 mr-1" />
+        <span>Pending</span>
+      </div>
+    );
+
+  case 'rejected':
+    return (
+      <div className="flex items-center text-red-400 text-sm bg-red-900/30 px-2 py-1 rounded-full">
+        <Shield className="h-4 w-4 mr-1" />
+        <span>Not Verified</span>
+      </div>
+    );
+
+  default:
+    return (
+      <div className="flex items-center text-gray-400 text-sm bg-gray-900/30 px-2 py-1 rounded-full">
+        <Shield className="h-4 w-4 mr-1" />
+        <span>Unknown</span>
+      </div>
+    );
+}
+  }
 
   return (
     <>

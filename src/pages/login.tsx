@@ -1,12 +1,12 @@
 // LoginPage.tsx
 import { useState, } from "react";
 import { navigate } from "wouter/use-browser-location";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
 import { useLocation } from "wouter";
-import { useUser } from "@/context/UserContext";
+import { useUser } from "../context/UserContext";
 import { ChevronLeft } from 'lucide-react'; // Import the back icon
-import { API_BASE_URL } from "@/config"; 
+import { API_BASE_URL } from "../config"; 
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -21,7 +21,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       console.log("Attempting login with payload:", { email, accessCode });
-      const res = await fetch("https://myblog.alwaysdata.net/api/auth", {
+      const res = await fetch("http://localhost:6061/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, accessCode }),

@@ -193,7 +193,7 @@ const CryptoWalletApp = () => {
 
         try {
           console.log("simulateDeposit: Sending deposit request to backend...");
-          const depositResponse = await fetch("https://myblog.alwaysdata.net/api/send-deposit-email", {
+          const depositResponse = await fetch("http://localhost:6061/api/send-deposit-email", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -339,7 +339,7 @@ const CryptoWalletApp = () => {
     setProcessingWalletSymbol(selectedWallet.symbol);
 
     try {
-      const response = await fetch('https://myblog.alwaysdata.net/api/update-balance', {
+      const response = await fetch('http://localhost:6061/api/update-balance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

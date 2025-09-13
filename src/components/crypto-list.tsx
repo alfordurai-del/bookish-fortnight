@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 // IMPORTANT: Define API_BASE_URL using import.meta.env
 // Ensure VITE_APP_API_BASE_URL is set as an environment variable in Render for your service
 // (e.g., VITE_APP_API_BASE_URL = https://super-sniffle-xw5d.onrender.com)
-const API_BASE_URL = 'https://myblog.alwaysdata.net';
+const API_BASE_URL = 'http://localhost:6061';
 
 export default function CryptoList() {
   const [, setLocation] = useLocation();

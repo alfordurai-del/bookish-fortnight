@@ -15,7 +15,7 @@ import { useUser } from '../context/UserContext'; // Uncommented and now being u
 import { Skeleton } from '../components/ui/skeleton'; // Assuming you have a Skeleton component
 
 // IMPORTANT: Define API_BASE_URL using window.location.origin for browser environment
-const API_BASE_URL = 'https://myblog.alwaysdata.net';
+const API_BASE_URL = 'http://localhost:6061';
 
 // Define the Trade type based on your backend schema
 interface Trade {

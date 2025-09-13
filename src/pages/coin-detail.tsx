@@ -322,11 +322,11 @@ export default function CoinDetail() {
       return responseData as Trade;
     } catch (error: any) {
       console.error('Error completing trade:', error);
-      // toast({
-      //   title: "Error",
-      //   description: `Failed to complete trade: ${error.message}`,
-      //   variant: "destructive",
-      // });
+      toast({
+        title: "Error",
+        description: `Failed to complete trade: ${error.message}`,
+        variant: "destructive",
+      });
       return null;
     }
   }, [userProfile.email, toast]);
