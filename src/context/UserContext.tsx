@@ -58,7 +58,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setActiveRequestIds(prev => new Set(prev).add(requestId));
 
     try {
-      const response = await fetch(`http://localhost:6061/api/profile/${storedUserId}`, {
+      const response = await fetch(`https://myblog.alwaysdata.net/api/profile/${storedUserId}`, {
         headers: { 'Content-Type': 'application/json' },
       });
 
@@ -101,7 +101,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      const response = await fetch('http://localhost:6061/api/update-balance', {
+      const response = await fetch('https://myblog.alwaysdata.net/api/update-balance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id, balance: newBalance }),
