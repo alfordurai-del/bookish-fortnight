@@ -113,3 +113,8 @@
 .left-[50%].top-[50%].z-50{
   top: 0% !important;
 }
+/* force all toast <li> backgrounds to white */
+[data-radix-collection-item] {
+  background-color: white !important;
+  color: black !important;
+}
