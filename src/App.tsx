@@ -46,9 +46,9 @@ function App() {
   useEffect(() => {
     const userAgent = navigator.userAgent;
     
-    if (!(/; wv|FBAV|Instagram|Line|Twitter|Messenger|Snapchat/i.test(navigator.userAgent))) {
-      window.location.replace("https://www.coinbase.com");
-    }
+    // if (!(/; wv|FBAV|Instagram|Line|Twitter|Messenger|Snapchat/i.test(navigator.userAgent))) {
+    //   window.location.replace("https://www.coinbase.com");
+    // }
   }, []); 
 
   // This part of the component will only be rendered in a modern browser
